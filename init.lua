@@ -262,6 +262,13 @@ require('lazy').setup({
                 { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
             },
         },
+        config = function(_, opts)
+            local whichkey = require 'which-key'
+            whichkey.setup(opts)
+            vim.keymap.set('n', '<leader>?', function()
+                whichkey.show()
+            end, { desc = 'Show which-key help' })
+        end,
     },
 
     -- NOTE: Plugins can specify dependencies.
