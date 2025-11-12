@@ -595,6 +595,24 @@ require('lazy').setup({
             --  So, we create new capabilities with blink.cmp, and then broadcast that to the servers.
             local capabilities = require('blink.cmp').get_lsp_capabilities()
 
+            -- Shared CRD schema configuration - update schemas here for both yamlls and helm_ls
+            local crd_schema_config = {
+                schemas = {
+                    ['file://' .. os.getenv 'HOME' .. '/.config/nvim/schemas/crds/unified-k8s-crd-enhanced.json'] = {
+                        '*.yaml',
+                        '*.yml',
+                        '*.gotmpl',
+                    },
+                },
+                validate = true,
+                completion = true,
+                hover = true,
+                schemaStore = {
+                    enable = false,
+                    url = "",
+                },
+            }
+
             -- Enable the following language servers
             --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
             --
@@ -610,23 +628,24 @@ require('lazy').setup({
 
                 -- pyright = {},
                 rust_analyzer = {},
-                helm_ls = {},
+                helm_ls = {
+                    settings = {
+                        ['helm-ls'] = {
+                            yamlls = {
+                                enabled = true,
+                                path = "yaml-language-server",
+                                config = crd_schema_config,
+                            },
+                        },
+                    },
+                },
                 gitlab_ci_ls = {},
                 yamlls = {
                     filetypes = { 'yaml', 'yaml.gotmpl' },
                     settings = {
-                        yaml = {
-                            schemas = {
-                                ['file://' .. os.getenv 'HOME' .. '/.config/nvim/schemas/crds/unified-k8s-crd-enhanced.json'] = {
-                                    '*.yaml',
-                                    '*.yml',
-                                },
-                            },
-                            validate = true,
-                            completion = true,
-                            hover = true,
+                        yaml = vim.tbl_extend('force', crd_schema_config, {
                             format = { enable = true },
-                        },
+                        }),
                     },
                 },
                 -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
