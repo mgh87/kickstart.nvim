@@ -614,6 +614,20 @@ require('lazy').setup({
                 gitlab_ci_ls = {},
                 yamlls = {
                     filetypes = { 'yaml', 'yaml.gotmpl' },
+                    settings = {
+                        yaml = {
+                            schemas = {
+                                ['file://' .. os.getenv 'HOME' .. '/.config/nvim/schemas/crds/unified-k8s-crd-enhanced.json'] = {
+                                    '*.yaml',
+                                    '*.yml',
+                                },
+                            },
+                            validate = true,
+                            completion = true,
+                            hover = true,
+                            format = { enable = true },
+                        },
+                    },
                 },
                 -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
                 --
@@ -659,20 +673,16 @@ require('lazy').setup({
             })
             require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
-            require('mason-lspconfig').setup {
-                ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
-                automatic_installation = false,
-                handlers = {
-                    function(server_name)
-                        local server = servers[server_name] or {}
-                        -- This handles overriding only values explicitly passed
-                        -- by the server configuration above. Useful when disabling
-                        -- certain features of an LSP (for example, turning off formatting for ts_ls)
-                        server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
-                        require('lspconfig')[server_name].setup(server)
-                    end,
-                },
-            }
+            for server, cfg in pairs(servers) do
+                -- For each LSP server (cfg), we merge:
+                -- 1. A fresh empty table (to avoid mutating capabilities globally)
+                -- 2. Your capabilities object with Neovim + cmp features
+                -- 3. Any server-specific cfg.capabilities if defined in `servers`
+                cfg.capabilities = vim.tbl_deep_extend('force', {}, capabilities, cfg.capabilities or {})
+
+                vim.lsp.config(server, cfg)
+                vim.lsp.enable(server)
+            end
         end,
     },
 
@@ -951,43 +961,6 @@ require('lazy').setup({
             lazy = '💤 ',
         },
     },
-})
-
--- Working yamlls configuration for CRD autocompletion
-vim.api.nvim_create_autocmd('FileType', {
-    pattern = { 'yaml', 'yaml.gotmpl' },
-    callback = function()
-        -- Check if yamlls is already running for this buffer to avoid duplicates
-        local clients = vim.lsp.get_clients { name = 'yamlls', bufnr = vim.api.nvim_get_current_buf() }
-        if #clients > 0 then
-            return
-        end
-
-        -- Start yamlls with CRD schemas for YAML files
-        local client_id = vim.lsp.start {
-            cmd = { vim.fn.exepath 'yaml-language-server', '--stdio' },
-            filetypes = { 'yaml', 'yaml.gotmpl' },
-            root_dir = vim.fn.getcwd(),
-            settings = {
-                yaml = {
-                    schemas = {
-                        ['file://' .. os.getenv 'HOME' .. '/.config/nvim/schemas/crds/unified-k8s-crd-enhanced.json'] = {
-                            '*.yaml',
-                            '*.yml',
-                        },
-                    },
-                    validate = true,
-                    completion = true,
-                    hover = true,
-                    format = { enable = true },
-                },
-            },
-        }
-
-        if client_id then
-            print '✅ yamlls started with CRD schemas'
-        end
-    end,
 })
 
 -- The line beneath this is called `modeline`. See `:help modeline`
