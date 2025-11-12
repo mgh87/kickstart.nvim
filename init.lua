@@ -953,5 +953,42 @@ require('lazy').setup({
     },
 })
 
+-- Working yamlls configuration for CRD autocompletion
+vim.api.nvim_create_autocmd('FileType', {
+    pattern = { 'yaml', 'yaml.gotmpl' },
+    callback = function()
+        -- Check if yamlls is already running for this buffer to avoid duplicates
+        local clients = vim.lsp.get_clients { name = 'yamlls', bufnr = vim.api.nvim_get_current_buf() }
+        if #clients > 0 then
+            return
+        end
+
+        -- Start yamlls with CRD schemas for YAML files
+        local client_id = vim.lsp.start {
+            cmd = { vim.fn.exepath 'yaml-language-server', '--stdio' },
+            filetypes = { 'yaml', 'yaml.gotmpl' },
+            root_dir = vim.fn.getcwd(),
+            settings = {
+                yaml = {
+                    schemas = {
+                        ['file://' .. os.getenv 'HOME' .. '/.config/nvim/schemas/crds/unified-k8s-crd-enhanced.json'] = {
+                            '*.yaml',
+                            '*.yml',
+                        },
+                    },
+                    validate = true,
+                    completion = true,
+                    hover = true,
+                    format = { enable = true },
+                },
+            },
+        }
+
+        if client_id then
+            print '✅ yamlls started with CRD schemas'
+        end
+    end,
+})
+
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
