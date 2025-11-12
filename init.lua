@@ -395,7 +395,7 @@ require('lazy').setup({
             end, { desc = '[S]earch [N]eovim files' })
         end,
     },
-
+    { 'qvalentin/helm-ls.nvim', ft = 'helm' },
     -- LSP Plugins
     {
         -- `lazydev` configures Lua LSP for your Neovim config, runtime and plugins
