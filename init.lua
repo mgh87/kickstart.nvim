@@ -97,11 +97,10 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 -- or just use <C-\><C-n> to exit terminal mode
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
--- TIP: Disable arrow keys in normal mode
--- vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
--- vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
--- vim.keymap.set('n', '<up>', '<cmd>echo "Use k to move!!"<CR>')
--- vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>')
+vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
+vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
+vim.keymap.set('n', '<up>', '<cmd>echo "Use k to move!!"<CR>')
+vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>')
 
 -- Keybinds to make split navigation easier.
 --  Use CTRL+<hjkl> to switch between windows
@@ -147,77 +146,16 @@ end
 local rtp = vim.opt.rtp
 rtp:prepend(lazypath)
 
--- [[ Configure and install plugins ]]
---
---  To check the current status of your plugins, run
---    :Lazy
---
---  You can press `?` in this menu for help. Use `:q` to close the window
---
---  To update plugins you can run
---    :Lazy update
---
--- NOTE: Here is where you install your plugins.
 require('lazy').setup({
-    -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
-    'NMAC427/guess-indent.nvim', -- Detect tabstop and shiftwidth automatically
+    { import = 'plugins' },
 
-    -- NOTE: Plugins can also be added by using a table,
-    -- with the first argument being the link and the following
-    -- keys can be used to configure plugin behavior/loading/etc.
-    --
-    -- Use `opts = {}` to automatically pass options to a plugin's `setup()` function, forcing the plugin to be loaded.
-    --
-
-    -- Alternatively, use `config = function() ... end` for full control over the configuration.
-    -- If you prefer to call `setup` explicitly, use:
-    --    {
-    --        'lewis6991/gitsigns.nvim',
-    --        config = function()
-    --            require('gitsigns').setup({
-    --                -- Your gitsigns configuration here
-    --            })
-    --        end,
-    --    }
-    --
-    -- Here is a more advanced example where we pass configuration
-    -- options to `gitsigns.nvim`.
-    --
-    -- See `:help gitsigns` to understand what the configuration keys do
-    { -- Adds git related signs to the gutter, as well as utilities for managing changes
-        'lewis6991/gitsigns.nvim',
-        opts = {
-            signs = {
-                add = { text = '+' },
-                change = { text = '~' },
-                delete = { text = '_' },
-                topdelete = { text = '‾' },
-                changedelete = { text = '~' },
-            },
-        },
-    },
-
-    -- NOTE: Plugins can also be configured to run Lua code when they are loaded.
-    --
-    -- This is often very useful to both group configuration, as well as handle
-    -- lazy loading plugins that don't need to be loaded immediately at startup.
-    --
-    -- For example, in the following configuration, we use:
-    --  event = 'VimEnter'
-    --
-    -- which loads which-key before all the UI elements are loaded. Events can be
-    -- normal autocommands events (`:help autocmd-events`).
-    --
-    -- Then, because we use the `opts` key (recommended), the configuration runs
-    -- after the plugin has been loaded as `require(MODULE).setup(opts)`.
-
-    { -- Useful plugin to show you pending keybinds.
+    {
         'folke/which-key.nvim',
         event = 'VimEnter', -- Sets the loading event to 'VimEnter'
         opts = {
             -- delay between pressing a key and opening which-key (milliseconds)
             -- this setting is independent of vim.o.timeoutlen
-            delay = 0,
+            delay = 350,
             icons = {
                 -- set icon mappings to true if you have a Nerd Font
                 mappings = vim.g.have_nerd_font,
@@ -404,11 +342,11 @@ require('lazy').setup({
         lazy = false,
         build = function()
             -- Create schemas directory if it doesn't exist
-            local schemas_dir = vim.fn.stdpath('config') .. '/schemas/crds'
+            local schemas_dir = vim.fn.stdpath 'config' .. '/schemas/crds'
             vim.fn.mkdir(schemas_dir, 'p')
-            
+
             -- Copy popular CRD schemas to our config directory
-            local catalog_dir = vim.fn.stdpath('data') .. '/lazy/crds-catalog'
+            local catalog_dir = vim.fn.stdpath 'data' .. '/lazy/crds-catalog'
             local popular_crds = {
                 -- Popular third-party operators
                 'argoproj.io',
@@ -505,7 +443,7 @@ require('lazy').setup({
                 'workflows.cnrm.cloud.google.com',
             }
 
-            -- Copy CRD files  
+            -- Copy CRD files
             for _, crd in ipairs(popular_crds) do
                 local src_dir = catalog_dir .. '/' .. crd
                 -- Check if the directory exists
@@ -515,7 +453,7 @@ require('lazy').setup({
                 end
             end
 
-            print('CRDs catalog downloaded and popular schemas copied!')
+            print 'CRDs catalog downloaded and popular schemas copied!'
         end,
         config = function()
             -- This plugin doesn't need runtime configuration
@@ -724,7 +662,7 @@ require('lazy').setup({
             -- Shared CRD schema configuration - automatically loads from CRDs catalog
             local function build_crd_schemas()
                 local schemas = {}
-                local schemas_dir = vim.fn.stdpath('config') .. '/schemas/crds'
+                local schemas_dir = vim.fn.stdpath 'config' .. '/schemas/crds'
 
                 -- Auto-discover CRD schemas from catalog (no need for unified schema anymore)
                 local crd_files = vim.fn.glob(schemas_dir .. '/*.json', false, true)
@@ -1081,7 +1019,6 @@ require('lazy').setup({
     -- require 'kickstart.plugins.autopairs',
     -- require 'kickstart.plugins.neo-tree',
     -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
-    require 'kickstart.plugins.oil',
 
     -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
     --    This is the easiest way to modularize your config.
