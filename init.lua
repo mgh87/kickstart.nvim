@@ -344,31 +344,6 @@ require('lazy').setup {
             --  So, we create new capabilities with blink.cmp, and then broadcast that to the servers.
             local capabilities = require('blink.cmp').get_lsp_capabilities()
 
-            -- Shared CRD schema configuration - automatically loads from CRDs catalog
-            local function build_crd_schemas()
-                local schemas = {}
-                local schemas_dir = vim.fn.stdpath 'config' .. '/schemas/crds'
-
-                -- Auto-discover CRD schemas from catalog (no need for unified schema anymore)
-                local crd_files = vim.fn.glob(schemas_dir .. '/*.json', false, true)
-                for _, file in ipairs(crd_files) do
-                    schemas['file://' .. file] = { '*.yaml', '*.yml', '*.gotmpl' }
-                end
-
-                return schemas
-            end
-
-            local crd_schema_config = {
-                schemas = build_crd_schemas(),
-                validate = true,
-                completion = true,
-                hover = true,
-                schemaStore = {
-                    enable = false,
-                    url = '',
-                },
-            }
-
             -- Enable the following language servers
             --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
             --
@@ -384,26 +359,107 @@ require('lazy').setup {
 
                 -- pyright = {},
                 rust_analyzer = {},
-                helm_ls = {
-                    settings = {
-                        ['helm-ls'] = {
+                helm_ls = require('schema-companion').setup_client(
+                    require('schema-companion').adapters.helmls.setup {
+                        sources = {
+                            -- your sources for the language server
+                            require('schema-companion').sources.matchers.kubernetes.setup { version = 'master' },
+                        },
+                    },
+                    {
+                        filetypes = { 'helm' },
+                        root_markers = { { 'Chart.yaml' } },
+                        cmd = {
+                            'helm_ls',
+                            'serve',
+                        },
+                        settings = {
+                            logLevel = 'info',
+                            valuesFiles = {
+                                mainValuesFile = 'values.yaml',
+                                lintOverlayValuesFile = 'values.lint.yaml',
+                                additionalValuesFilesGlobPattern = 'values*.yaml',
+                            },
+                            helmLint = {
+                                enabled = true,
+                                ignoredMessages = {},
+                            },
                             yamlls = {
                                 enabled = true,
-                                path = 'yaml-language-server',
-                                config = crd_schema_config,
+                                enabledForFilesGlob = '*.{yaml,yml}',
+                                diagnosticsLimit = 50,
+                                showDiagnosticsDirectly = false,
+                                path = { 'yaml-language-server', '--stdio' }, -- or something like { "node", "yaml-language-server.js" }
+                                initTimeoutSeconds = 3,
+                                config = {
+                                    schemas = {
+                                        kubernetes = 'templates/**',
+                                    },
+                                    completion = true,
+                                    hover = true,
+                                    -- any other config from https://github.com/redhat-developer/yaml-language-server#language-server-settings
+                                },
+                            },
+                        },
+                    }
+                ),
+                gitlab_ci_ls = {},
+                yamlls = require('schema-companion').setup_client(
+                    require('schema-companion').adapters.yamlls.setup {
+                        sources = {
+                            -- your sources for the language server
+                            require('schema-companion').sources.matchers.kubernetes.setup { version = 'master' },
+                            require('schema-companion').sources.lsp.setup(),
+                            require('schema-companion').sources.schemas.setup {
+                                {
+                                    name = 'Kubernetes master',
+                                    uri = 'https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/master-standalone-strict/all.json',
+                                },
                             },
                         },
                     },
-                },
-                gitlab_ci_ls = {},
-                yamlls = {
-                    filetypes = { 'yaml', 'yaml.gotmpl' },
-                    settings = {
-                        yaml = vim.tbl_extend('force', crd_schema_config, {
-                            format = { enable = true },
-                        }),
-                    },
-                },
+
+                    {
+
+                        cmd = { 'yaml-language-server', '--stdio' },
+                        filetypes = {
+                            'yaml',
+                        },
+
+                        capabilities = {
+                            textDocument = {
+                                foldingRange = {
+                                    dynamicRegistration = false,
+                                    lineFoldingOnly = true,
+                                },
+                            },
+                        },
+
+                        settings = {
+                            flags = {
+                                debounce_text_changes = 50,
+                            },
+
+                            redhat = { telemetry = { enabled = false } },
+
+                            yaml = {
+                                keyOrdering = false,
+                                format = {
+                                    enable = true,
+                                },
+                                validate = true,
+                                schemaStore = {
+                                    -- Must disable built-in schemaStore support to use schemas from SchemaStore.nvim plugin
+                                    enable = false,
+                                    -- Avoid TypeError: Cannot read properties of undefined (reading 'length')
+                                    url = '',
+                                },
+                                schemas = require('schemastore').yaml.schemas(),
+                            },
+                        },
+                    }
+                ),
+
                 -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
                 --
                 -- Some languages (like typescript) have entire language plugins that can be useful:
