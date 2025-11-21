@@ -129,7 +129,6 @@ rtp:prepend(lazypath)
 
 require('lazy').setup {
     { import = 'plugins' },
-    -- LSP Plugins
     {
         -- `lazydev` configures Lua LSP for your Neovim config, runtime and plugins
         -- used for completion, annotations and signatures of Neovim apis
@@ -142,267 +141,6 @@ require('lazy').setup {
             },
         },
     },
-    {
-        -- Main LSP Configuration
-        'neovim/nvim-lspconfig',
-        dependencies = {
-            { 'mason-org/mason.nvim', opts = {} },
-            'mason-org/mason-lspconfig.nvim',
-            'WhoIsSethDaniel/mason-tool-installer.nvim',
-
-            -- Useful status updates for LSP.
-            { 'j-hui/fidget.nvim', opts = {} },
-
-            -- Allows extra capabilities provided by blink.cmp
-            'saghen/blink.cmp',
-        },
-        config = function()
-            vim.api.nvim_create_autocmd('LspAttach', {
-                group = vim.api.nvim_create_augroup('kickstart-lsp-attach', { clear = true }),
-                callback = function(event)
-                    local map = function(keys, func, desc, mode)
-                        mode = mode or 'n'
-                        vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = 'LSP: ' .. desc })
-                    end
-
-                    -- Rename the variable under your cursor.
-                    --  Most Language Servers support renaming across files, etc.
-                    map('grn', vim.lsp.buf.rename, '[R]e[n]ame')
-
-                    -- Execute a code action, usually your cursor needs to be on top of an error
-                    -- or a suggestion from your LSP for this to activate.
-                    map('gra', vim.lsp.buf.code_action, '[G]oto Code [A]ction', { 'n', 'x' })
-
-                    -- Find references for the word under your cursor.
-                    map('grr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
-
-                    -- Jump to the implementation of the word under your cursor.
-                    --  Useful when your language has ways of declaring types without an actual implementation.
-                    map('gri', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
-
-                    -- Jump to the definition of the word under your cursor.
-                    --  This is where a variable was first declared, or where a function is defined, etc.
-                    --  To jump back, press <C-t>.
-                    map('grd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
-
-                    -- WARN: This is not Goto Definition, this is Goto Declaration.
-                    --  For example, in C this would take you to the header.
-                    map('grD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
-
-                    -- Fuzzy find all the symbols in your current document.
-                    --  Symbols are things like variables, functions, types, etc.
-                    map('gO', require('telescope.builtin').lsp_document_symbols, 'Open Document Symbols')
-
-                    -- Fuzzy find all the symbols in your current workspace.
-                    --  Similar to document symbols, except searches over your entire project.
-                    map('gW', require('telescope.builtin').lsp_dynamic_workspace_symbols, 'Open Workspace Symbols')
-
-                    -- Jump to the type of the word under your cursor.
-                    --  Useful when you're not sure what type a variable is and you want to see
-                    --  the definition of its *type*, not where it was *defined*.
-                    map('grt', require('telescope.builtin').lsp_type_definitions, '[G]oto [T]ype Definition')
-
-                    local client = vim.lsp.get_client_by_id(event.data.client_id)
-                    if
-                        client
-                        and client:supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight, event.buf)
-                    then
-                        local highlight_augroup =
-                            vim.api.nvim_create_augroup('kickstart-lsp-highlight', { clear = false })
-                        vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
-                            buffer = event.buf,
-                            group = highlight_augroup,
-                            callback = vim.lsp.buf.document_highlight,
-                        })
-
-                        vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
-                            buffer = event.buf,
-                            group = highlight_augroup,
-                            callback = vim.lsp.buf.clear_references,
-                        })
-
-                        vim.api.nvim_create_autocmd('LspDetach', {
-                            group = vim.api.nvim_create_augroup('kickstart-lsp-detach', { clear = true }),
-                            callback = function(event2)
-                                vim.lsp.buf.clear_references()
-                                vim.api.nvim_clear_autocmds {
-                                    group = 'kickstart-lsp-highlight',
-                                    buffer = event2.buf,
-                                }
-                            end,
-                        })
-                    end
-
-                    if
-                        client
-                        and client:supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint, event.buf)
-                    then
-                        map('<leader>th', function()
-                            vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled {
-                                bufnr = event.buf,
-                            })
-                        end, '[T]oggle Inlay [H]ints')
-                    end
-                end,
-            })
-
-            -- Diagnostic Config
-            -- See :help vim.diagnostic.Opts
-            vim.diagnostic.config {
-                severity_sort = true,
-                float = { border = 'rounded', source = 'if_many' },
-                underline = { severity = vim.diagnostic.severity.ERROR },
-                signs = vim.g.have_nerd_font and {
-                    text = {
-                        [vim.diagnostic.severity.ERROR] = '󰅚 ',
-                        [vim.diagnostic.severity.WARN] = '󰀪 ',
-                        [vim.diagnostic.severity.INFO] = '󰋽 ',
-                        [vim.diagnostic.severity.HINT] = '󰌶 ',
-                    },
-                } or {},
-                virtual_text = {
-                    source = 'if_many',
-                    spacing = 2,
-                    format = function(diagnostic)
-                        local diagnostic_message = {
-                            [vim.diagnostic.severity.ERROR] = diagnostic.message,
-                            [vim.diagnostic.severity.WARN] = diagnostic.message,
-                            [vim.diagnostic.severity.INFO] = diagnostic.message,
-                            [vim.diagnostic.severity.HINT] = diagnostic.message,
-                        }
-                        return diagnostic_message[diagnostic.severity]
-                    end,
-                },
-            }
-
-            local servers = {
-                gopls = {},
-                rust_analyzer = {},
-                helm_ls = require('schema-companion').setup_client(
-                    require('schema-companion').adapters.helmls.setup {
-                        sources = {
-                            -- your sources for the language server
-                            require('schema-companion').sources.matchers.kubernetes.setup { version = 'master' },
-                        },
-                    },
-                    {
-                        filetypes = { 'helm' },
-                        root_markers = { { 'Chart.yaml' } },
-                        cmd = {
-                            'helm_ls',
-                            'serve',
-                        },
-                        settings = {
-                            logLevel = 'info',
-                            valuesFiles = {
-                                mainValuesFile = 'values.yaml',
-                                lintOverlayValuesFile = 'values.lint.yaml',
-                                additionalValuesFilesGlobPattern = 'values*.yaml',
-                            },
-                            helmLint = {
-                                enabled = true,
-                                ignoredMessages = {},
-                            },
-                            yamlls = {
-                                enabled = true,
-                                enabledForFilesGlob = '*.{yaml,yml}',
-                                diagnosticsLimit = 50,
-                                showDiagnosticsDirectly = false,
-                                path = { 'yaml-language-server', '--stdio' }, -- or something like { "node", "yaml-language-server.js" }
-                                initTimeoutSeconds = 3,
-                                config = {
-                                    schemas = {
-                                        kubernetes = 'templates/**',
-                                    },
-                                    completion = true,
-                                    hover = true,
-                                    -- any other config from https://github.com/redhat-developer/yaml-language-server#language-server-settings
-                                },
-                            },
-                        },
-                    }
-                ),
-                gitlab_ci_ls = {},
-                yamlls = require('schema-companion').setup_client(
-                    require('schema-companion').adapters.yamlls.setup {
-                        sources = {
-                            -- your sources for the language server
-                            require('schema-companion').sources.matchers.kubernetes.setup { version = 'master' },
-                            require('schema-companion').sources.lsp.setup(),
-                            require('schema-companion').sources.schemas.setup {
-                                {
-                                    name = 'Kubernetes master',
-                                    uri = 'https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/master-standalone-strict/all.json',
-                                },
-                            },
-                        },
-                    },
-
-                    {
-
-                        cmd = { 'yaml-language-server', '--stdio' },
-                        filetypes = {
-                            'yaml',
-                        },
-
-                        capabilities = {
-                            textDocument = {
-                                foldingRange = {
-                                    dynamicRegistration = false,
-                                    lineFoldingOnly = true,
-                                },
-                            },
-                        },
-
-                        settings = {
-                            flags = {
-                                debounce_text_changes = 50,
-                            },
-
-                            redhat = { telemetry = { enabled = false } },
-
-                            yaml = {
-                                keyOrdering = false,
-                                format = {
-                                    enable = true,
-                                },
-                                validate = true,
-                                schemaStore = {
-                                    -- Must disable built-in schemaStore support to use schemas from SchemaStore.nvim plugin
-                                    enable = false,
-                                    -- Avoid TypeError: Cannot read properties of undefined (reading 'length')
-                                    url = '',
-                                },
-                                schemas = require('schemastore').yaml.schemas(),
-                            },
-                        },
-                    }
-                ),
-
-                lua_ls = {
-                    settings = {
-                        Lua = {
-                            completion = {
-                                callSnippet = 'Replace',
-                            },
-                        },
-                    },
-                },
-            }
-            local ensure_installed = vim.tbl_keys(servers or {})
-            vim.list_extend(ensure_installed, {
-                'stylua', -- Used to format Lua code
-            })
-            require('mason-tool-installer').setup {
-                ensure_installed = ensure_installed,
-            }
-
-            for server, cfg in pairs(servers) do
-                vim.lsp.enable(server)
-            end
-        end,
-    },
-
     { -- Autoformat
         'stevearc/conform.nvim',
         event = { 'BufWritePre' },
@@ -484,45 +222,14 @@ require('lazy').setup {
         --- @type blink.cmp.Config
         opts = {
             keymap = {
-                -- 'default' (recommended) for mappings similar to built-in completions
-                --   <c-y> to accept ([y]es) the completion.
-                --    This will auto-import if your LSP supports it.
-                --    This will expand snippets if the LSP sent a snippet.
-                -- 'super-tab' for tab to accept
-                -- 'enter' for enter to accept
-                -- 'none' for no mappings
-                --
-                -- For an understanding of why the 'default' preset is recommended,
-                -- you will need to read `:help ins-completion`
-                --
-                -- No, but seriously. Please read `:help ins-completion`, it is really good!
-                --
-                -- All presets have the following mappings:
-                -- <tab>/<s-tab>: move to right/left of your snippet expansion
-                -- <c-space>: Open menu or open docs if already open
-                -- <c-n>/<c-p> or <up>/<down>: Select next/previous item
-                -- <c-e>: Hide menu
-                -- <c-k>: Toggle signature help
-                --
-                -- See :h blink-cmp-config-keymap for defining your own keymap
                 preset = 'default',
-
-                -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
-                --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
             },
-
             appearance = {
-                -- 'mono' (default) for 'Nerd Font Mono' or 'normal' for 'Nerd Font'
-                -- Adjusts spacing to ensure icons are aligned
                 nerd_font_variant = 'mono',
             },
-
             completion = {
-                -- By default, you may press `<c-space>` to show the documentation.
-                -- Optionally, set `auto_show = true` to show the documentation after a delay.
                 documentation = { auto_show = true, auto_show_delay_ms = 500 },
             },
-
             sources = {
                 default = { 'lsp', 'path', 'snippets', 'lazydev' },
                 providers = {
@@ -532,23 +239,12 @@ require('lazy').setup {
                     },
                 },
             },
-
             snippets = { preset = 'luasnip' },
-
-            -- Blink.cmp includes an optional, recommended rust fuzzy matcher,
-            -- which automatically downloads a prebuilt binary when enabled.
-            --
-            -- By default, we use the Lua implementation instead, but you may enable
-            -- the rust implementation via `'prefer_rust_with_warning'`
-            --
-            -- See :h blink-cmp-config-fuzzy for more information
             fuzzy = { implementation = 'lua' },
-
-            -- Shows a signature help window while you type arguments for a function
             signature = { enabled = true },
         },
     },
-    { -- Collection of various small independent plugins/modules
+    {
         'echasnovski/mini.nvim',
         config = function()
             -- Better Around/Inside textobjects
@@ -585,7 +281,7 @@ require('lazy').setup {
             --  Check out: https://github.com/echasnovski/mini.nvim
         end,
     },
-    { -- Highlight, edit, and navigate code
+    {
         'nvim-treesitter/nvim-treesitter',
         build = ':TSUpdate',
         main = 'nvim-treesitter.configs', -- Sets main module to use for opts
@@ -608,47 +304,11 @@ require('lazy').setup {
             auto_install = true,
             highlight = {
                 enable = true,
-                -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
-                --  If you are experiencing weird indenting issues, add the language to
-                --  the list of additional_vim_regex_highlighting and disabled languages for indent.
                 additional_vim_regex_highlighting = { 'ruby' },
             },
             indent = { enable = true, disable = { 'ruby' } },
         },
-        -- There are additional nvim-treesitter modules that you can use to interact
-        -- with nvim-treesitter. You should go explore a few and see what interests you:
-        --
-        --    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
-        --    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
-        --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
     },
-
-    -- The following comments only work if you have downloaded the kickstart repo, not just copy pasted the
-    -- init.lua. If you want these files, they are in the repository, so you can just download them and
-    -- place them in the correct locations.
-
-    -- NOTE: Next step on your Neovim journey: Add/Configure additional plugins for Kickstart
-    --
-    --  Here are some example plugins that I've included in the Kickstart repository.
-    --  Uncomment any of the lines below to enable them (you will need to restart nvim).
-    --
-    -- require 'kickstart.plugins.debug',
-    -- require 'kickstart.plugins.indent_line',
-    -- require 'kickstart.plugins.lint',
-    -- require 'kickstart.plugins.autopairs',
-    -- require 'kickstart.plugins.neo-tree',
-    -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
-
-    -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
-    --    This is the easiest way to modularize your config.
-    --
-    --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
-    -- { import = 'custom.plugins' },
-    --
-    -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
-    -- Or use telescope!
-    -- In normal mode type `<space>sh` then write `lazy.nvim-plugin`
-    -- you can continue same window with `<space>sr` which resumes last telescope search
 }
 
 -- The line beneath this is called `modeline`. See `:help modeline`

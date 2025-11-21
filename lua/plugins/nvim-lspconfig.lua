@@ -128,7 +128,8 @@ return {
         }
 
         local servers = { 'helm_ls', 'gitlab_ci_ls', 'gopls', 'rust_analyzer', 'yamlls', 'lua_ls' }
-        local ensure_installed = vim.tbl_keys(servers)
+
+        local ensure_installed = { unpack(servers) }
         vim.list_extend(ensure_installed, {
             'stylua',
         })
