@@ -16,9 +16,17 @@ return {
         vim.o.autoread = true
 
         -- Recommended/example keymaps.
-        vim.keymap.set({ 'n', 'x' }, '<leader>oc', function()
+        vim.keymap.set('n', '<leader>oc', function()
             require('opencode').ask('@this: ', { submit = true })
         end, { desc = 'Ask opencode' })
+        vim.keymap.set('x', '<leader>oc', function()
+            -- Exit visual mode first to preserve selection marks
+            vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'n', false)
+            -- Use vim.schedule to ensure the escape is processed first
+            vim.schedule(function()
+                require('opencode').ask('@this: ', { submit = true })
+            end)
+        end, { desc = 'Ask opencode with selection' })
         vim.keymap.set({ 'n', 'x' }, '<leader>ox', function()
             require('opencode').select()
         end, { desc = 'Execute opencode action…' })
