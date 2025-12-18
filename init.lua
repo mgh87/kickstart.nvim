@@ -16,6 +16,9 @@ end)
 
 vim.o.breakindent = true
 
+-- Always expandtab
+vim.o.expandtab = true
+
 -- Save undo history
 vim.o.undofile = true
 
