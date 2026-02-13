@@ -113,6 +113,17 @@ vim.api.nvim_create_autocmd('TextYankPost', {
     end,
 })
 
+-- [[ Filetype detection ]]
+-- Detect Helm template files (*.yaml.gotmpl, *.yml.gotmpl, *.tpl) as helm filetype
+vim.api.nvim_create_autocmd({ 'BufRead', 'BufNewFile' }, {
+    desc = 'Detect Helm template files',
+    group = vim.api.nvim_create_augroup('helm-filetype-detect', { clear = true }),
+    pattern = { '*.yaml.gotmpl', '*.yml.gotmpl', '*.tpl' },
+    callback = function()
+        vim.bo.filetype = 'helm'
+    end,
+})
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
